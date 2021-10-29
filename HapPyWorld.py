@@ -10,6 +10,8 @@ from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVR
 from sklearn.inspection import permutation_importance
+from sklearn.linear_model import LinearRegression
+from sklearn.feature_selection import SelectKBest, f_regression
 
 st.set_option('deprecation.showPyplotGlobalUse', False)
 
@@ -268,10 +270,26 @@ if menu == 'Data Visualisation':
             
             st.pyplot()
     
-        st.text('Corrélation des variables')
+                
+        ### Pie plot pays par région
+        st.text('Proportion / poids des régions')
         
-        #Heatmap corrélation variables
-    
+        fig = px.pie(values = df.groupby('Regional indicator').count()['Country name'].sort_values().values, names = df.groupby('Regional indicator').count()
+        ['Country name'].sort_values().index, title = 'Répartition des pays par "Regional indicator"', 
+        color_discrete_map = {'Sub-Saharan Africa':'#636EFA',
+                        'Western Europe':'EF553B',
+                        'Middle East and North Africa':'19D3F3',
+                        'Latin America and Caribbean':'FECB52',
+                        'Commonwealth of Independent States':'FB0D0D',
+                        'Southeast Asie':'1CFFCE',
+                        'South Asia':'0D2A63',
+                        'East Asia':'7F7F7F',
+                        'North America and ANZ':'AF0038'})
+        fig.update_traces(textposition='inside', textinfo='percent+label')
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Heatmap corrélation variables
+        st.markdown('### Heatmap - Corrélation entre les variables')
         plt.figure(figsize=(15,15))
         num_var = df.drop(['Country name',"Regional indicator"], axis= 1)
         sns.heatmap(data = num_var.corr(), annot=True, cmap ="winter");
@@ -308,22 +326,6 @@ if menu == 'Data Visualisation':
      
               
             st.pyplot()
-        
-        st.text('Proportion / poids des régions')
-        
-        fig = px.pie(values = df.groupby('Regional indicator').count()['Country name'].sort_values().values, names = df.groupby('Regional indicator').count()
-        ['Country name'].sort_values().index, title = 'Répartition des pays par "Regional indicator"', 
-        color_discrete_map = {'Sub-Saharan Africa':'#636EFA',
-                        'Western Europe':'EF553B',
-                        'Middle East and North Africa':'19D3F3',
-                        'Latin America and Caribbean':'FECB52',
-                        'Commonwealth of Independent States':'FB0D0D',
-                        'Southeast Asie':'1CFFCE',
-                        'South Asia':'0D2A63',
-                        'East Asia':'7F7F7F',
-                        'North America and ANZ':'AF0038'})
-        fig.update_traces(textposition='inside', textinfo='percent+label')
-        st.plotly_chart(fig, use_container_width=True)
      
     if st.sidebar.checkbox('Données cumulées de 2005 à 2021') :          
         
@@ -337,7 +339,7 @@ if menu == 'Data Visualisation':
         ax = sns.relplot(x='year', y='Country name', hue='rank', size= 'Ladder score', height=5, aspect = 2, palette = 'tab10', data=df_full_top3)
         st.pyplot()
         
-        st.text('Evolution du ladder score et des variables explicatives du top 5')
+        st.text('Evolution du ladder score et des variables explicatives des 5 pays ayant été Top1')
         # les 5 pays qui se disputent la 1ère place depuis 2005
     
         first_countries = ['Denmark', 'Finland', 'Switzerland', 'Canada', 'Norway']
@@ -345,7 +347,6 @@ if menu == 'Data Visualisation':
         df_full_first_countries = df_full[df_full['Country name'].isin(first_countries)]
         liste_var = ('Ladder score','Logged GDP per capita', 'Social support','Healthy life expectancy','Freedom to make life choices', 'Generosity', 'Perceptions of corruption')
     
-        #plt.figure(figsize=(20,20))
         for i in liste_var :
             sns.relplot(x='year', y=i, kind='line',hue='Country name', style='Country name', height=4, aspect = 2, data = df_full_first_countries).set(title=(i + ' des 5 pays Top1'));
             st.pyplot()
@@ -407,22 +408,66 @@ if menu =='Focus' :
     
     st.write(df_full_country.transpose())
     
+
     
 
-### MODELISATION ------------------------------------------------------
+### MODELISATION -----------------------------------------------------------------------------------------------------
 if menu == 'Modélisation' :
-    st.sidebar.markdown("### Modélisation")
     
-    st.sidebar.markdown("SVM") 
+    st.sidebar.markdown("### Modélisation")
+    st.sidebar.image('ML_ampoule.png')
+    
+    st.write("## Régression linéaire")
+    
+    if st.button("RL") :
+        col_rl1, col_rl2 = st.columns(2)
+        
+        
+        model = LinearRegression()
+    
+        model.fit(X_train_scaled, y_train)
+        
+        with col_rl1 :
+            st.write('Coef de détermination du modèle :', round(model.score(X_train_scaled, y_train),2))
+            st.write('Coef de détermination obtenu par cv :', round(cross_val_score(model, X_train_scaled, y_train).mean(),2))
+            st.write('Score test :', round(model.score(X_test_scaled, y_test),2))
+        
+        with col_rl2 :
+            pred_test = model.predict(X_test_scaled)
+            plt.scatter(pred_test, y_test)
+            plt.plot((y_test.min(), y_test.max()), (y_test.min(), y_test.max()),c='r');
+            
+            st.pyplot()
+        
+        
+        sk = SelectKBest(f_regression, k=3)
+    
+        sk.fit(X_train, y_train)
+        
+        with col_rl1:
+            st.write("### Recherche des variables significatives avec SelectKBest")
+            significant_feat = X_full.columns[sk.get_support()]
+            
+            st.write("Significant features :", significant_feat)
+            
+            model.fit(X_train[significant_feat], y_train)
+            
+            st.write("#### RL entraînée avec les variables significatives :")
+            st.write('score train :', round(model.score(X_train[significant_feat], y_train),2))
+            st.write('score test :', round(model.score(X_test[significant_feat], y_test),2))
+    
+    
+## SVM  
     st.write("## Support Vector Machine")
     
     ## SVM
-    #recherche best params
-    BestParams = {'C':5, 'gamma': 0.5, 'kernel':'rbf'}
+    if st.button("SVM") :
     
-    expander_svm = st.expander(label='Détails du modèle SVM')
-    
-    with expander_svm :
+        #recherche best params
+                
+        BestParams = {'C':5, 'gamma': 0.5, 'kernel':'rbf'}
+        
+        
         col3, col4 = st.columns(2)
         
         with col3 :
@@ -446,120 +491,141 @@ if menu == 'Modélisation' :
             
             pred_test = model.predict(X_test_scaled)
             pred_train = model.predict(X_train_scaled)
-            
-    
+                
+        
         with col4 :
             plt.scatter(pred_test, y_test)
             plt.plot((y_test.min(), y_test.max()), (y_test.min(), y_test.max()), c='r');
             st.pyplot()
+        
+        
+        exp_param = st.expander(label='Modification des Hyperparamètres')
+        with exp_param :
+           
+            col_1_param, col_2_param = st.columns(2)
             
-        st.write("## Modification des hyperparamètres")    
-        col_1_param, col_2_param = st.columns(2)
-        with col_1_param :
-            C_slider = st.slider('Paramètre C', 1,100,5)
-            Kernel_slider = st.select_slider('Kernel', options=['rbf', 'linear', 'poly'])
-            Gamma_slider = st.slider('Gamma', 0.001, 100.000, 0.500)
-        
-        with col_2_param :
+            with col_1_param :
+                C_slider = st.slider('Paramètre C', 1,100,5)
+                Kernel_slider = st.select_slider('Kernel', options=['rbf', 'linear', 'poly'])
+                Gamma_slider = st.slider('Gamma', 0.001, 100.000, 0.500)
             
-            model = SVR(C=C_slider, kernel = Kernel_slider, gamma = Gamma_slider)
-            model.fit(X_train_scaled, y_train)
-            st.write('Coef de détermination du modèle :', round(model.score(X_train_scaled, y_train),2))
-            st.write('Coef de détermination obtenu par cv :', round(cross_val_score(model, X_train_scaled, y_train).mean(),2))
-            st.write('Score test :', round(model.score(X_test_scaled, y_test),2))
-        
-            pred_test = model.predict(X_test_scaled)
-            pred_train = model.predict(X_train_scaled)
-            plt.scatter(pred_test, y_test)
-            plt.plot((y_test.min(), y_test.max()), (y_test.min(), y_test.max()), c='r');
-            st.pyplot()
-    col5, col6 = st.columns((1,2))        
-    with col5 :
-        st.write("## Paramètres utilisés :", BestParams)
-        st.write('Coef de détermination du modèle :', round(model.score(X_train_scaled, y_train),2))
-        st.write('Coef de détermination obtenu par cv :', round(cross_val_score(model, X_train_scaled, y_train).mean(),2))
-        st.write('Score test :', round(model.score(X_test_scaled, y_test),2)) 
-    with col6 :
-        # Permutation importance
-        st.write("## Permutation Importance")
-        Y = y_train
-        X = X_train_scaled
-        
-        perm_importance = permutation_importance(model, X, Y, n_repeats=20, random_state=0)
-        
-        features = np.array(col_feat)
-        
-        sorted_idx = perm_importance.importances_mean.argsort()
-        plt.figure(figsize=(10,5))
-        plt.barh(features[sorted_idx], perm_importance.importances_mean[sorted_idx])
-        plt.xlabel("Permutation Importance");
-        st.pyplot()
-    
-        
-        
-
-    st.write("## Fonctionnement du modèle par Région du Monde")    
-    st.write("### Moyennes par région du monde / différence entre la moyenne du Ladder score et du score prédit")
-
-       
-    df_scores_test = pd.DataFrame({'Ladder score' : y_test, 'Score prédit' : pred_test}, index = y_test.index)
-    df_scores_train = pd.DataFrame({'Ladder score' : y_train, 'Score prédit' : pred_train}, index = y_train.index)
-    df_scores = pd.concat([df_scores_test, df_scores_train], axis=0)
-    df_scores.drop('Ladder score', axis=1, inplace=True)
-    df_full_score = df_full.merge(df_scores, how='left', left_index=True, right_index=True)
-    df_full_score['diff_scores'] = abs(df_full_score['Score prédit'] - df_full_score['Ladder score'])
-    df_full_score.sort_values(by='diff_scores')
-    regions_group = df_full_score.groupby(by='Regional indicator').agg(
-        Ladder_score_mean = ('Ladder score', 'mean'), 
-        GDP_mean = ('Logged GDP per capita', 'mean'),
-        Social_support_mean = ('Social support', 'mean'),
-        Healthy_life_mean = ('Healthy life expectancy', 'mean'),
-        Life_choices_mean = ('Freedom to make life choices', 'mean'),
-        Generosity_mean = ('Generosity', 'mean'),
-        Perc_corruption_mean = ('Perceptions of corruption', 'mean'),
-        rank_min = ('rank', 'min'),
-        rank_max = ('rank', 'max'),
-        Score_predit_mean = ('Score prédit', 'mean'),
-        nb_pays = ('Country name', 'nunique')
-        ) 
-
-    regions_group['diff_moy_reg'] = abs(regions_group['Score_predit_mean'] - regions_group['Ladder_score_mean'])
-    
-    regions_group.sort_values(by='diff_moy_reg', inplace=True)
-    
-    st.dataframe(regions_group)
-    
-    Regions = country_region['Regional indicator'].unique()
-    
-    expander_permut_region = st.expander(label='Permutation Importance par Région du Monde')
-    with expander_permut_region :    
+            with col_2_param :
                 
-        i=1
-        for reg in Regions :
-                    
-            Region = df_full_score[df_full_score['Regional indicator'] == reg]
-    
-            name_region = Region['Regional indicator'][:1].values
-            X_region = Region[col_feat]
-            y_region = Region['Ladder score']
-    
-            X_region_scaled = scaler.transform(X_region)
-    
-            model.fit(X_region_scaled, y_region)
-    
-            perm_importance = permutation_importance(model, X_region_scaled, y_region, n_repeats=10, random_state=0)
-    
+                model = SVR(C=C_slider, kernel = Kernel_slider, gamma = Gamma_slider)
+                model.fit(X_train_scaled, y_train)
+                st.write('Coef de détermination du modèle :', round(model.score(X_train_scaled, y_train),2))
+                st.write('Coef de détermination obtenu par cv :', round(cross_val_score(model, X_train_scaled, y_train).mean(),2))
+                st.write('Score test :', round(model.score(X_test_scaled, y_test),2))
+            
+                pred_test = model.predict(X_test_scaled)
+                pred_train = model.predict(X_train_scaled)
+                plt.scatter(pred_test, y_test)
+                plt.plot((y_test.min(), y_test.max()), (y_test.min(), y_test.max()), c='r');
+                st.pyplot()
+            
+        col5, col6 = st.columns((1,2))        
+        with col5 :
+           
+            # Permutation importance
+            st.write("### Permutation Importance")
+            Y = y_train
+            X = X_train_scaled
+            
+            perm_importance = permutation_importance(model, X, Y, n_repeats=20, random_state=0)
+            
             features = np.array(col_feat)
-    
+            
             sorted_idx = perm_importance.importances_mean.argsort()
-            plt.figure(figsize=(20,7))
-            plt.subplot(5,2,i)
-            ax=sns.barplot(x = perm_importance.importances_mean[sorted_idx],y = features[sorted_idx] , palette = "Blues", orient='h')
-            ax.set_xlim(left=0, right=1)
-            #plt.xlabel("Permutation Importance")
-            plt.title(name_region)
-            i += 1
+            #plt.figure(figsize=(10,5))
+            plt.barh(features[sorted_idx], perm_importance.importances_mean[sorted_idx])
+            plt.xlabel("Permutation Importance");
             st.pyplot()
+                
+        with col6 :
+               
+            Regions = country_region['Regional indicator'].unique()
+           
+            expander_permut_region = st.expander(label='Permutation Importance par Région du Monde')
+            with expander_permut_region :    
+                        
+                i=1
+                for reg in Regions :
+                            
+                    Region = df_full[df_full['Regional indicator'] == reg]
+            
+                    name_region = Region['Regional indicator'][:1].values
+                    X_region = Region[col_feat]
+                    y_region = Region['Ladder score']
+            
+                    X_region_scaled = scaler.transform(X_region)
+            
+                    model.fit(X_region_scaled, y_region)
+            
+                    perm_importance = permutation_importance(model, X_region_scaled, y_region, n_repeats=10, random_state=0)
+            
+                    features = np.array(col_feat)
+            
+                    sorted_idx = perm_importance.importances_mean.argsort()
+                    plt.figure(figsize=(20,7))
+                    plt.subplot(5,2,i)
+                    ax=sns.barplot(x = perm_importance.importances_mean[sorted_idx],y = features[sorted_idx] , palette = "Blues", orient='h')
+                    ax.set_xlim(left=0, right=1)
+                    #plt.xlabel("Permutation Importance")
+                    plt.title(name_region)
+                    i += 1
+                    st.pyplot()
+            
+    
+        st.write("## Fonctionnement du modèle par Région du Monde")    
+        st.write("### Moyennes par région du monde / différence entre la moyenne du Ladder score et du score prédit")
+    
+           
+        df_scores_test = pd.DataFrame({'Ladder score' : y_test, 'Score prédit' : pred_test}, index = y_test.index)
+        df_scores_train = pd.DataFrame({'Ladder score' : y_train, 'Score prédit' : pred_train}, index = y_train.index)
+        df_scores = pd.concat([df_scores_test, df_scores_train], axis=0)
+        df_scores.drop('Ladder score', axis=1, inplace=True)
+        df_full_score = df_full.merge(df_scores, how='left', left_index=True, right_index=True)
+        df_full_score['diff_scores'] = abs(df_full_score['Score prédit'] - df_full_score['Ladder score'])
+        df_full_score.sort_values(by='diff_scores')
+        regions_group = df_full_score.groupby(by='Regional indicator').agg(
+            Ladder_score_mean = ('Ladder score', 'mean'), 
+            GDP_mean = ('Logged GDP per capita', 'mean'),
+            Social_support_mean = ('Social support', 'mean'),
+            Healthy_life_mean = ('Healthy life expectancy', 'mean'),
+            Life_choices_mean = ('Freedom to make life choices', 'mean'),
+            Generosity_mean = ('Generosity', 'mean'),
+            Perc_corruption_mean = ('Perceptions of corruption', 'mean'),
+            rank_min = ('rank', 'min'),
+            rank_max = ('rank', 'max'),
+            Score_predit_mean = ('Score prédit', 'mean'),
+            nb_pays = ('Country name', 'nunique')
+            ) 
+    
+        regions_group['diff_moy_reg'] = abs(regions_group['Score_predit_mean'] - regions_group['Ladder_score_mean'])
+        
+        regions_group.sort_values(by='diff_moy_reg', inplace=True)
+        
+        st.dataframe(regions_group)
+
+        regions_group = regions_group.sort_values(by='diff_moy_reg')
+        
+        col_reg_1, col_reg_2 = st.columns(2)
+        
+        with col_reg_1 :
+            bar_width = 0.5
+            fig = plt.figure(figsize=(10,5))
+            
+            plt.bar(regions_group.index, regions_group['Score_predit_mean'], label='Moyenne Ladder score prédit', alpha=0.5)
+            plt.bar(regions_group.index, regions_group['Ladder_score_mean'], label='Moyenne Ladder score', width = bar_width)
+            plt.xticks(rotation=30, ha='right')
+            plt.grid(alpha=0.5)
+            plt.legend();
+            st.pyplot()            
+        
+
+            
+            
+            
 
 st.sidebar.markdown('## Participants :')
 st.sidebar.write('[Pierre Thomas](https://www.linkedin.com/in/pierre12-thomas)')
