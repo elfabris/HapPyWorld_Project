@@ -100,7 +100,7 @@ if menu == 'Intro' :
     st.sidebar.markdown('### Intro')
 ### Titre
     st.header("HapPyWorld Project")
-    st.subheader("by Pierre, Loris et Eleonora")
+
 ### Carte du monde
     st.markdown("## Evolution du Happiness Score au fil des ans")
     df_full_by_year = df_full.sort_values('year')
