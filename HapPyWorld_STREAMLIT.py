@@ -100,7 +100,7 @@ if menu == 'Intro' :
     st.sidebar.markdown('### Intro')
 ### Titre
     st.header("HapPyWorld Project")
-
+    st.subheader("by Pierre, Loris et Eleonora")
 ### Carte du monde
     st.markdown("## Evolution du Happiness Score au fil des ans")
     df_full_by_year = df_full.sort_values('year')
@@ -608,21 +608,16 @@ if menu == 'Modélisation' :
         st.dataframe(regions_group)
 
         regions_group = regions_group.sort_values(by='diff_moy_reg')
+        bar_width = 0.5
+        fig = plt.figure(figsize=(15,8))
         
-        col_reg_1, col_reg_2 = st.columns(2)
+        plt.bar(regions_group.index, regions_group['Score_predit_mean'], label='Moyenne Ladder score prédit', alpha=0.5)
+        plt.bar(regions_group.index, regions_group['Ladder_score_mean'], label='Moyenne Ladder score', width = bar_width)
+        plt.xticks(rotation=30, ha='right')
+        plt.grid(alpha=0.5)
+        plt.legend();
+        st.pyplot()            
         
-        with col_reg_1 :
-            bar_width = 0.5
-            fig = plt.figure(figsize=(10,5))
-            
-            plt.bar(regions_group.index, regions_group['Score_predit_mean'], label='Moyenne Ladder score prédit', alpha=0.5)
-            plt.bar(regions_group.index, regions_group['Ladder_score_mean'], label='Moyenne Ladder score', width = bar_width)
-            plt.xticks(rotation=30, ha='right')
-            plt.grid(alpha=0.5)
-            plt.legend();
-            st.pyplot()            
-        
-
             
             
             
