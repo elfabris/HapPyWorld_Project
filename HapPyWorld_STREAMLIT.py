@@ -5,7 +5,8 @@ import streamlit as st
 import plotly.express as px
 import matplotlib.pyplot as plt
 
-from sklearn import model_selection, preprocessing
+from sklearn import model_selection
+from sklearn import preprocessing
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVR
